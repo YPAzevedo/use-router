@@ -1,2 +1,3 @@
-# use-router
-Created with CodeSandbox
+# use-router 🌐
+
+Simple router hook to manage React routing.
