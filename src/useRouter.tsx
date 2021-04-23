@@ -1,4 +1,4 @@
-import {
+import React, {
   ComponentType,
   HTMLAttributes,
   useEffect,
@@ -11,6 +11,7 @@ type Routes = Record<string, ComponentType<any>>;
 
 export function matchRoute(routes: Routes) {
   let routeMatched = "";
+
   const [resultMatch] = Object.keys(routes)
     .map((route) => {
       const routeMatcher = match(route);
@@ -18,12 +19,10 @@ export function matchRoute(routes: Routes) {
       if (matched) routeMatched = route;
       return matched;
     })
-    .filter(Boolean) as [any];
+    .filter(Boolean);
 
-  return [
-    routeMatched,
-    (resultMatch || {}).params as Record<string, string | number>
-  ] as const;
+  const params = (resultMatch || {}).params as Record<string, string | number>;
+  return [routeMatched, params] as const;
 }
 
 function useHistory() {
@@ -31,12 +30,12 @@ function useHistory() {
     () => ({
       push: (path: string) => {
         if (window.location.pathname === path) return;
-        window.history.pushState(null, "path", path);
+        window.history.pushState(null, path, path);
         window.dispatchEvent(new Event("popstate"));
       },
       replace: (path: string) => {
         if (window.location.pathname === path) return;
-        window.history.replaceState(null, "path", path);
+        window.history.replaceState(null, path, path);
         window.dispatchEvent(new Event("popstate"));
       }
     }),
@@ -56,40 +55,41 @@ export default function useRouter<TRoutes extends Routes>(
 ) {
   const [, rerender] = useReducer(() => Symbol(), Symbol());
 
-  const allPaths = Object.keys(routes);
-
-  const utils = {
-    path: window.location.pathname
-  };
+  const allRoutes = Object.keys(routes);
 
   useEffect(() => {
     window.addEventListener("popstate", rerender);
     return () => window.removeEventListener("popstate", rerender);
   }, []);
 
-  const methods = useHistory();
+  const history = useHistory();
 
   const [pathMatch, params] = matchRoute(routes);
 
-  const isValidPath = allPaths.includes(pathMatch);
+  const isValidPath = allRoutes.includes(pathMatch);
 
   const FallbackComponent = config.fallback;
   const Component = isValidPath ? routes[pathMatch] : FallbackComponent;
 
-  return [<Component location={params} />, methods, utils] as const;
+  return [<Component location={params} />, history] as const;
 }
 
 export function Link({
   to,
+  children,
   ...props
 }: HTMLAttributes<HTMLAnchorElement> & { to: string }) {
   const { push } = useHistory();
   const aProps = {
     ...props,
-    onClick: (event: any) => {
+    onClick: (event: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
       event.preventDefault();
       push(to);
     }
   };
-  return <a {...aProps} href={to} />;
+  return (
+    <a {...aProps} href={to}>
+      {children}
+    </a>
+  );
 }
